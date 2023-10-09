@@ -1,0 +1,24 @@
+gcloud pubsub subscriptions pull --auto-ack MySub
+
+
+gcloud pubsub topics create topic-memories-632
+
+
+
+gcloud functions deploy memories-thumbnail-maker \
+  --gen2 \
+  --stage-bucket qwiklabs-gcp-02-412308ce9ba0-bucket \
+  --trigger-topic topic-memories-632 \
+  --runtime nodejs20
+  --allow-unauthenticated
+
+
+  gcloud functions describe memories-thumbnail-maker
+
+
+
+  DATA=$(printf 'Hello World!'|base64) && gcloud functions call memories-thumbnail-maker --data '{"data":"'$DATA'"}'
+
+
+
+  gcloud functions logs read memories-thumbnail-maker

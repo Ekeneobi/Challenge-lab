@@ -1,0 +1,254 @@
+gcloud compute instance-templates create my-lb-backend-template \
+   --region Region \
+   --network=default \
+   --subnet=default \
+   --tags=allow-health-check \
+   --machine-type=e2-medium \
+   --image-family=debian-11 \
+   --image-project=debian-cloud \
+   --metadata=startup-script='#!/bin/bash
+     apt-get update
+     apt-get install -y nginx
+     service nginx start
+     apt-get install apache2 -y
+     sed -i -- 's/nginx/Google Cloud Platform - '"\$HOSTNAME"'/'
+     /var/www/html/index.nginx-debian.html'
+     
+     HOSTNAME="$(curl -H "Metadata-Flavor:Google" \
+     http://169.254.169.254/computeMetadata/v1/instance/name)"
+
+gcloud compute instance-groups managed create my-lb-backend-group \
+   --template=my-lb-backend-template --size=2 --region=us-east1
+
+gcloud compute target-pools create www-pool \
+--region=us-east1 
+ --http-health-check my-http-basic-check --global
+  
+gcloud compute firewall-rules create permit-tcp-rule-195 \
+  --network=default \
+  --action=allow \
+  --direction=ingress \
+  --source-ranges=130.211.0.0/22,35.191.0.0/16 \
+  --target-tags=allow-health-check \
+  --rules=tcp:80
+
+gcloud compute health-checks create http my-http-basic-check \
+  --port 80 
+
+gcloud compute backend-services create web-backend-service \
+  --protocol=HTTP \
+  --port-name=http \
+  --health-checks=my-http-basic-check \
+  --global
+
+gcloud compute backend-services add-backend web-backend-service \
+  --instance-group=my-lb-backend-group \
+  --instance-group-zone=us-west1-a \
+  --global
+
+gcloud compute url-maps create web-map-http \
+    --default-service web-backend-service
+
+
+gcloud compute instances create nucleus-jumphost-534 \
+   --network=default \
+   --subnet=default \
+   --machine-type=e2-micro \
+   --image-family=debian-11 \
+   --image-project=debian-cloud 
+    
+
+    gcloud container clusters create --machine-type=e2-medium --zone=us-east1-b my-cluster
+
+
+    kubectl create deployment my-cluster --image=gcr.io/google-samples/hello-app:2.0
+
+    kubectl expose deployment my-cluster --type=LoadBalancer --port 8082
+
+
+    gcloud config set compute/region Region
+
+    gcloud config set compute/zone Zone
+
+
+
+    gcloud compute forwarding-rules create www-rule \
+    --region=us-east1  \
+    --ports 80 \
+    --target-pool www-pool
+
+
+    gcloud compute instance-templates create my-lb-backend-template \
+   --network=default \
+   --subnet=default \
+   --tags=allow-health-check \
+   --machine-type=e2-medium \
+   --image-family=debian-11 \
+   --image-project=debian-cloud \
+   --metadata=startup-script='cat << EOF > startup.sh
+     #!/bin/bash
+     apt-get update
+     apt-get install nginx -y
+     service nginx start
+     EOF'
+
+
+     us-west1
+
+     sudo systemctl status nginx
+
+
+
+     gcloud compute firewall-rules create permit-tcp-rule-374 \
+          --allow tcp:80 \
+          --network nucleus-vpc
+
+
+
+          gcloud compute instances create nucleus-jumphost-325 \
+          --network nucleus-vpc \
+          --zone us-east1-b  \
+          --machine-type f1-micro  \
+          --image-family debian-9  \
+          --image-project debian-cloud \
+          --scopes cloud-platform \
+          --no-address
+
+
+
+          Lab Name: Create and Manage Cloud Resources: Challenge Lab (GSP313)
+
+
+Task 1: Create a project jumphost instance
+Run command:
+
+gcloud compute instances create nucleus-jumphost \
+          --network nucleus-vpc \
+          --zone us-east1-b  \
+          --machine-type f1-micro  \
+          --image-family debian-9  \
+          --image-project debian-cloud \
+          --scopes cloud-platform \
+          --no-address
+
+          
+Task 2: Create a Kubernetes service cluster
+Run command:
+
+gcloud container clusters create nucleus-backend \
+          --num-nodes 1 \
+          --network nucleus-vpc \
+          --region us-east1
+gcloud container clusters get-credentials nucleus-backend \
+          --region us-east1
+
+kubectl create deployment hello-server \
+          --image=gcr.io/google-samples/hello-app:2.0
+
+kubectl expose deployment hello-server \
+          --type=LoadBalancer \
+          --port 8080
+
+Task 3: Set up an HTTP load balancer
+Run command:
+
+cat << EOF > startup.sh
+#! /bin/bash
+apt-get update
+apt-get install -y nginx
+service nginx start
+sed -i -- 's/nginx/Google Cloud Platform - '"\$HOSTNAME"'/' /var/www/html/index.nginx-debian.html
+EOF
+
+
+gcloud compute instance-templates create web-server-template \
+          --metadata-from-file startup-script=startup.sh \
+          --network nucleus-vpc \
+          --machine-type g1-small \
+          --region us-east1
+
+
+gcloud compute instance-groups managed create web-server-group \
+          --base-instance-name web-server \
+          --size 2 \
+          --template web-server-template \
+          --region us-east1
+
+
+gcloud compute firewall-rules create web-server-firewall \
+          --allow tcp:80 \
+          --network nucleus-vpc
+          
+          
+gcloud compute http-health-checks create http-basic-check
+
+gcloud compute instance-groups managed \
+          set-named-ports web-server-group \
+          --named-ports http:80 \
+          --region us-east1
+
+
+gcloud compute backend-services create web-server-backend \
+          --protocol HTTP \
+          --http-health-checks http-basic-check \
+          --global
+          
+gcloud compute backend-services add-backend web-server-backend \
+          --instance-group web-server-group \
+          --instance-group-region us-east1 \
+          --global
+
+
+gcloud compute url-maps create web-server-map \
+          --default-service web-server-backend
+          
+gcloud compute target-http-proxies create http-lb-proxy \
+          --url-map web-server-map
+
+
+gcloud compute forwarding-rules create http-content-rule \
+        --global \
+        --target-http-proxy http-lb-proxy \
+        --ports 80
+        
+gcloud compute forwarding-rules list
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+gsutil ls gs://qwiklabsgcp01482c01f85d1b \
+        --region us
+
+
+
+gcloud compute instances create lamp-1-vm \
+   --zone $ZONE \
+   --network=default \
+   --subnet=default \
+   --machine-type=e2-medium \
+   --image-family=debian-11 \
+   --image-project=debian-cloud 
+
+
+
+gcloud functions deploy helloWorld \
+  --stage-bucket qwiklabs-gcp-03-997d3341d7d0 \
+  --trigger-topic hello_world \
+  --runtime nodejs20
+
+
+  gsutil mb -p [PROJECT_ID] gs://[BUCKET_NAME]
+
+
+  gcloud config set compute/region us-west1
+
+
+  mkdir gcf_hello_world
+
+  cd gcf_hello_world
+
+  nano index.js
+
+
+  DATA=$(printf 'Hello World!'|base64) && gcloud functions call helloWorld --data '{"data":"'$DATA'"}'
