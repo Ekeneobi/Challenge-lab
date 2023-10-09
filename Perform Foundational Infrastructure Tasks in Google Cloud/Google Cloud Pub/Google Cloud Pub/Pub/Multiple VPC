@@ -1,0 +1,74 @@
+gcloud compute networks create managementnet \
+--project=qwiklabs-gcp-02-ae6aa270821c --subnet-mode=custom \
+--mtu=1460 --bgp-routing-mode=regional
+
+gcloud compute networks subnets create managementsubnet-us-east1 \
+--project=qwiklabs-gcp-02-ae6aa270821c --range=10.130.0.0/20 \
+--stack-type=IPV4_ONLY --network=managementnet \
+--region=us-east1
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+gcloud compute networks create privatenet --subnet-mode=custom
+
+gcloud compute networks subnets create privatesubnet-us-east1 --network=privatenet --region=us-east1 --range=172.16.0.0/24
+
+gcloud compute networks subnets create privatesubnet-europe-west4 --network=privatenet --region=europe-west4 --range=172.20.0.0/20
+
+gcloud compute networks list
+
+gcloud compute networks subnets list --sort-by=NETWORK
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+gcloud compute \
+--project=qwiklabs-gcp-02-ae6aa270821c \
+firewall-rules create managementnet-allow-icmp-ssh-rdp \
+--direction=INGRESS \
+--priority=1000 \
+--network=managementnet \
+--action=ALLOW \
+--rules=tcp:22,tcp:3389,icmp \
+--source-ranges=0.0.0.0/0
+
+
+gcloud compute firewall-rules create privatenet-allow-icmp-ssh-rdp \
+--direction=INGRESS \
+--priority=1000 \
+--network=privatenet \
+--action=ALLOW \
+--rules=icmp,tcp:22,tcp:3389 \
+--source-ranges=0.0.0.0/0
+
+gcloud compute firewall-rules list --sort-by=NETWORK
+
+---------------------------------------------------------------------------------------------------------------------------------------
+
+gcloud compute instances create managementnet-us-east1-vm \
+--zone=us-east1-c \
+--machine-type=e2-micro \
+--network=managementnet \
+--subnet=managementsubnet-us-east1
+
+gcloud compute instances create privatenet-us-east1-vm \
+--zone=us-east1-c \
+--machine-type=e2-micro \
+--subnet=privatesubnet-us-east1
+
+
+---------------------------------------------------------------------------------------------------------------------------------------
+
+gcloud compute instances create vm-appliance \
+--zone=us-east1-c \
+--machine-type=e2-standard-4 \
+--subnet=privatesubnet-us-east1
+
+
+gcloud compute instances create vm-appliance \
+--zone=us-east1-c \
+--machine-type=e2-standard-4 \
+--subnet=privatesubnet-us-east1 \
+--subnet=managementsubnet-us-east1-c \
+--subnet=mynetwork
+
+----------------------------------------------------------------------------------------------------------------------------------------
