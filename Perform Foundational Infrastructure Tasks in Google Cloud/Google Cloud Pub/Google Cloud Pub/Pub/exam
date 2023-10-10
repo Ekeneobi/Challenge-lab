@@ -1,0 +1,84 @@
+
+gcloud config set compute/region us-east1
+
+gcloud config set compute/zone us-east1-b
+
+----------------------------------------------------------------------------------------------------------------
+gcloud compute networks create griffin-dev-vpc \
+--subnet-mode=custom \
+--mtu=1460 --bgp-routing-mode=regional
+
+
+gcloud compute networks subnets create griffin-dev-wp \
+--range=192.168.16.0/20 \
+--stack-type=IPV4_ONLY \
+--network=griffin-dev-vpc \
+--region=us-east1
+
+gcloud compute networks subnets create griffin-dev-mgmt \
+--range=192.168.32.0/20 \
+--stack-type=IPV4_ONLY \
+--network=griffin-dev-vpc \
+--region=us-east1
+
+gcloud compute firewall-rules create griffin-dev-firewall --network griffin-dev-vpc --allow tcp:22,tcp:3389,icmp
+
+---------------------------------------------------------------------------------------------------------------
+
+gcloud compute networks create griffin-prod-vpc \
+--subnet-mode=custom \
+--mtu=1460 --bgp-routing-mode=regional
+
+
+gcloud compute networks subnets create griffin-prod-wp \
+--range=192.168.48.0/20 \
+--stack-type=IPV4_ONLY \
+--network=griffin-prod-vpc \
+--region=us-east1
+
+gcloud compute networks subnets create griffin-prod-mgmt \
+--range=192.168.64.0/20 \
+--stack-type=IPV4_ONLY \
+--network=griffin-prod-vpc \
+--region=us-east1
+
+gcloud compute firewall-rules create griffin-prod-firewall --network griffin-prod-vpc --allow tcp:22,tcp:3389,icmp
+-------------------------------------------------------------------------------------------------------------------
+
+gcloud sql connect griffin-dev-db --user=root --quiet
+
+CREATE DATABASE wordpress;
+CREATE USER "wp_user"@"%" IDENTIFIED BY "stormwind_rules";
+GRANT ALL PRIVILEGES ON wordpress.* TO "wp_user"@"%";
+FLUSH PRIVILEGES;
+
+-------------------------------------------------------------------------------------------------------------------
+
+gcloud container clusters create griffin-dev \
+    --num-nodes 2 \
+    --machine-type=e2-standard-4 \
+    --network=griffin-dev-vpc \
+    --subnetwork griffin-dev-wp \
+    --zone us-east1-b
+
+
+gsutil -m cp -r gs://cloud-training/gsp321/wp-k8s .
+cd orchestrate-with-kubernetes/kubernetes
+
+gcloud iam service-accounts keys create key.json \
+    --iam-account=cloud-sql-proxy@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com
+kubectl create secret generic cloudsql-instance-credentials \
+    --from-file key.json
+
+kubectl apply -f wp-k8s/wp-env.yaml
+
+kubectl apply -f wp-k8s/wp-deployment.yaml
+
+kubectl apply -f wp-k8s/wp-service.yaml
+
+kubectl get pod -l app=wordpress --watch
+
+kubectl get svc -l app=wordpress --watch
+
+-------------------------------------------------------------------------------------------------------------------------
+gcloud projects add-iam-policy-binding PROJECT_ID --member="user:EMAIL_ADDRESS" --role=ROLE
