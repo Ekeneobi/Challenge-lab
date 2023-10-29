@@ -90,3 +90,101 @@ kubectl get pods -o jsonpath --template='{range .items[*]}{.metadata.name}{"\t"}
 kubectl rollout resume deployment/hello
 
 kubectl rollout status deployment/hello
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+gcloud container clusters update scaling-demo \
+    --enable-autoprovisioning \
+    --min-cpu 1 \
+    --min-memory 2 \
+    --max-cpu 45 \
+    --max-memory 160
+    --Region Region
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+GSP343 lab challenge
+
+### Task 1 - Create our cluster and deploy our app
+
+## set default zone
+gcloud config set compute/zone us-east4-c
+
+
+## Create our cluster and deploy our app
+gcloud container clusters create onlineboutique-cluster-671 --num-nodes=2 \
+--machine-type=e2-standard-2 
+
+## setup namespace
+kubectl create namespace dev
+kubectl create namespace prod
+
+## switch current namspace to dev
+kubectl config set-context --current --namespace dev
+
+## Copy the application files to the Shell environment, and then deploy the OnlineBoutique app to GKE
+git clone https://github.com/GoogleCloudPlatform/microservices-demo.git &&
+cd microservices-demo && kubectl apply -f ./release/kubernetes-manifests.yaml --namespace dev
+
+
+
+--
+### Task 2 - Migrate to an optimized node pool
+
+## create node pool
+gcloud container node-pools create optimized-pool-4631 \
+  --cluster=onlineboutique-cluster-671 \
+  --machine-type=custom-2-3584 \
+  --num-nodes=2 
+  
+
+## cordon node pool
+for node in $(kubectl get nodes -l cloud.google.com/gke-nodepool=my-node-pool -o=name); do
+  kubectl cordon "$node";
+done
+
+## Drain node pool
+for node in $(kubectl get nodes -l cloud.google.com/gke-nodepool=my-node-pool -o=name); do
+  kubectl drain --force --ignore-daemonsets --delete-local-data --grace-period=10 "$node";
+done
+
+## check migration
+kubectl get pods -o=wide
+
+## delete old node pool
+gcloud container node-pools delete default-pool --cluster onlineboutique-cluster-671 
+
+--
+### Task 3 - Apply a frontend update
+
+## set pod disruption budget 
+kubectl create poddisruptionbudget onlineboutique-frontend-pdb \
+--selector app=frontend --min-available 1  --namespace dev
+
+## edit kubectl image to gcr.io/qwiklabs-resources/onlineboutique-frontend:v2.1, and imagePullPolicy to Always
+KUBE_EDITOR="nano" kubectl edit deployment/frontend --namespace dev
+
+
+
+### Task 4. Autoscale from estimated traffic
+
+## inspect your cluster's deployments
+kubectl get deployment
+
+## Apply horizontal autoscaling to the deployment
+kubectl autoscale deployment frontend --cpu-percent=50 \
+   --min=1 --max=13 --namespace dev
+
+## Check the current status of your Horizontal Pod Autoscaler
+kubectl get hpa --namespace dev
+
+
+## Enable autoscaling for your cluster
+gcloud beta container clusters update onlineboutique-cluster-671 \
+   --enable-autoscaling --min-nodes 1 --max-nodes 6  
+
+https://chriskyfung.github.io/blog/qwiklabs/optimize-costs-for-google-kubernetes-engine-challenge-lab
+
+
+

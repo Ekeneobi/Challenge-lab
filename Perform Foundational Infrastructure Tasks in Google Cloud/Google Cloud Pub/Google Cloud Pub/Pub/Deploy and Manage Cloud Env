@@ -1,0 +1,231 @@
+gcloud config set compute/zone "us-west1-c"
+export ZONE=$(gcloud config get compute/zone)
+
+gcloud config set compute/region "us-west1"
+export REGION=$(gcloud config get compute/region)
+
+
+
+bq query --location=us --use_legacy_sql=false --use_cache=false \
+'CREATE OR REPLACE VIEW
+  bq_logs.v_querylogs AS
+SELECT
+  resource.labels.project_id,
+  protopayload_auditlog.authenticationInfo.principalEmail,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobConfiguration.query.query,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobConfiguration.query.statementType,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatus.error.message,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.startTime,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.endTime,
+  TIMESTAMP_DIFF(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.endTime,           protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.startTime, MILLISECOND)/1000 AS run_seconds,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalProcessedBytes,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalSlotMs,
+  ARRAY(SELECT as STRUCT datasetid, tableId FROM UNNEST(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.referencedTables)) as tables_ref,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalTablesProcessed,
+  protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.queryOutputRowCount,
+  severity
+FROM
+  `qwiklabs-gcp-04-831df0aca2ac.bq_logs.cloudaudit_googleapis_com_data_access_*`
+ORDER BY
+  startTime'
+
+bq query --location=us --use_legacy_sql=false --use_cache=false \
+'SELECT * FROM bq_logs.v_querylogs'
+
+10.102.112.0/24
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+sudo apt install postgresql-13-pglogical
+
+
+sudo su - postgres -c "gsutil cp gs://cloud-training/gsp918/pg_hba_append.conf ."
+sudo su - postgres -c "gsutil cp gs://cloud-training/gsp918/postgresql_append.conf ."
+sudo su - postgres -c "cat pg_hba_append.conf >> /etc/postgresql/13/main/pg_hba.conf"
+sudo su - postgres -c "cat postgresql_append.conf >> /etc/postgresql/13/main/postgresql.conf"
+sudo systemctl restart postgresql@13-main
+
+sudo su - postgres
+psql
+
+In pg_hba.conf these commands added a rule to allow access to all hosts:
+
+In postgresql.conf, these commands set the minimal configuration for pglogical to configure it to listen on all addresses:
+
+\c postgres;
+CREATE EXTENSION pglogical;
+\c orders;
+CREATE EXTENSION pglogical;
+\c gmemegen_db;
+CREATE EXTENSION pglogical;
+
+
+CREATE USER  replication_user PASSWORD 'DMS_1s_cool!';
+ALTER DATABASE orders OWNER TO  replication_user;
+ALTER DATABASE postgres OWNER TO  replication_user;
+ALTER ROLE  replication_user WITH REPLICATION;
+
+
+\c postgres;
+GRANT USAGE ON SCHEMA pglogical TO  replication_user;
+GRANT ALL ON SCHEMA pglogical TO  replication_user;
+GRANT SELECT ON pglogical.tables TO  replication_user;
+GRANT SELECT ON pglogical.depend TO  replication_user;
+GRANT SELECT ON pglogical.local_node TO  replication_user;
+GRANT SELECT ON pglogical.local_sync_status TO  replication_user;
+GRANT SELECT ON pglogical.node TO  replication_user;
+GRANT SELECT ON pglogical.node_interface TO  replication_user;
+GRANT SELECT ON pglogical.queue TO  replication_user;
+GRANT SELECT ON pglogical.replication_set TO  replication_user;
+GRANT SELECT ON pglogical.replication_set_seq TO  replication_user;
+GRANT SELECT ON pglogical.replication_set_table TO  replication_user;
+GRANT SELECT ON pglogical.sequence_state TO  replication_user;
+GRANT SELECT ON pglogical.subscription TO  replication_user;
+
+\c orders;
+GRANT USAGE ON SCHEMA pglogical TO  replication_user;
+GRANT ALL ON SCHEMA pglogical TO  replication_user;
+GRANT SELECT ON pglogical.tables TO  replication_user;
+GRANT SELECT ON pglogical.depend TO  replication_user;
+GRANT SELECT ON pglogical.local_node TO  replication_user;
+GRANT SELECT ON pglogical.local_sync_status TO  replication_user;
+GRANT SELECT ON pglogical.node TO  replication_user;
+GRANT SELECT ON pglogical.node_interface TO  replication_user;
+GRANT SELECT ON pglogical.queue TO  replication_user;
+GRANT SELECT ON pglogical.replication_set TO  replication_user;
+GRANT SELECT ON pglogical.replication_set_seq TO  replication_user;
+GRANT SELECT ON pglogical.replication_set_table TO  replication_user;
+GRANT SELECT ON pglogical.sequence_state TO  replication_user;
+GRANT SELECT ON pglogical.subscription TO  replication_user;
+
+GRANT USAGE ON SCHEMA public TO  replication_user;
+GRANT ALL ON SCHEMA public TO  replication_user;
+GRANT SELECT ON public.distribution_centers TO  replication_user;
+GRANT SELECT ON public.inventory_items TO  replication_user;
+GRANT SELECT ON public.order_items TO  replication_user;
+GRANT SELECT ON public.products TO  replication_user;
+GRANT SELECT ON public.users TO  replication_user;
+
+\c gmemegen_db;
+GRANT USAGE ON SCHEMA pglogical TO  replication_user;
+GRANT ALL ON SCHEMA pglogical TO  replication_user;
+GRANT SELECT ON pglogical.tables TO  replication_user;
+GRANT SELECT ON pglogical.depend TO  replication_user;
+GRANT SELECT ON pglogical.local_node TO  replication_user;
+GRANT SELECT ON pglogical.local_sync_status TO  replication_user;
+GRANT SELECT ON pglogical.node TO  replication_user;
+GRANT SELECT ON pglogical.node_interface TO  replication_user;
+GRANT SELECT ON pglogical.queue TO  replication_user;
+GRANT SELECT ON pglogical.replication_set TO  replication_user;
+GRANT SELECT ON pglogical.replication_set_seq TO  replication_user;
+GRANT SELECT ON pglogical.replication_set_table TO  replication_user;
+GRANT SELECT ON pglogical.sequence_state TO  replication_user;
+GRANT SELECT ON pglogical.subscription TO  replication_user;
+
+GRANT USAGE ON SCHEMA public TO  replication_user;
+GRANT ALL ON SCHEMA public TO  replication_user;
+GRANT SELECT ON public.meme TO  replication_user;
+
+\c orders;
+\dt
+ALTER TABLE public.distribution_centers OWNER TO  replication_user;
+ALTER TABLE public.inventory_items OWNER TO  replication_user;
+ALTER TABLE public.order_items OWNER TO  replication_user;
+ALTER TABLE public.products OWNER TO  replication_user;
+ALTER TABLE public.users OWNER TO  replication_user;
+\dt
+
+ALTER TABLE public.inventory_items ADD PRIMARY KEY(id);
+\q 
+exit
+
+
+sudo nano /etc/postgresql/13/main/pg_hba.conf
+
+---------------------------------------------------------------------------------------
+
+gcloud compute networks create vpc-network-zp1g \
+--subnet-mode=custom 
+
+
+gcloud compute networks create taw-custom-network --subnet-mode custom
+
+gcloud compute networks subnets create subnet-Region \
+   --network taw-custom-network \
+   --region Region \
+   --range 10.0.0.0/16
+
+gcloud compute networks subnets list \
+   --network taw-custom-network
+
+gcloud compute networks subnets create subnet-a-9a12 \
+--range=10.10.10.0/24 \
+--network=vpc-network-zp1g \
+--region=us-east4
+
+gcloud compute networks subnets create subnet-b-tk5h \
+--range=10.10.20.0/24 \
+--network=vpc-network-zp1g \
+--region=asia-southeast1
+
+
+gcloud compute \
+firewall-rules create offs-firewall-ssh \
+--direction=INGRESS \
+--priority=65535 \
+--network=vpc-network-zp1g \
+--action=ALLOW \
+--rules=tcp:22 \
+--source-ranges=0.0.0.0/0
+
+gcloud compute firewall-rules create "nw101-allow-internal" --allow tcp:0-65535,udp:0-65535,icmp --network "taw-custom-network" --source-ranges "10.0.0.0/16","10.2.0.0/16","10.1.0.0/16"
+
+gcloud compute firewall-rules create nw101-allow-http \
+--allow tcp:80 --network taw-custom-network --source-ranges 0.0.0.0/0 \
+--target-tags http
+
+gcloud compute firewall-rules create "nw101-allow-internal" --allow tcp:0-65535,udp:0-65535,icmp --network "taw-custom-network" --source-ranges "10.0.0.0/16","10.2.0.0/16","10.1.0.0/16"
+
+gcloud compute \
+firewall-rules create mnjz-firewall-rdp \
+--direction=INGRESS \
+--priority=65535 \
+--network=vpc-network-zp1g \
+--action=ALLOW \
+--rules=tcp:3389 \
+--source-ranges=0.0.0.0/0
+
+gcloud compute \
+firewall-rules create rhar-firewall-icmp \
+--direction=INGRESS \
+--priority=65535 \
+--network=vpc-network-zp1g \
+--action=ALLOW \
+--rules=icmp \
+--source-ranges=0.0.0.0/0
+
+
+gcloud compute networks create vpc-network-zp1g --subnet-mode=custom --mtu=1460 --bgp-routing-mode=regional
+
+gcloud compute networks subnets create subnet-a-9a12 --range=10.10.10.0/24 --stack-type=IPV4_ONLY --network=vpc-network-zp1g --region=us-east4
+
+gcloud compute networks subnets create subnet-b-tk5h --range=10.10.20.0/24 --stack-type=IPV4_ONLY --network=vpc-network-zp1g --region=asia-southeast1
+
+
+
+gcloud compute firewall-rules create offs-firewall-ssh --direction=INGRESS --priority=65535 --network=vpc-network-zp1g --action=ALLOW --rules=tcp:22 --source-ranges=0.0.0.0/0
+
+
+gcloud compute firewall-rules create mnjz-firewall-rdp --direction=INGRESS --priority=65535 --network=vpc-network-zp1g --action=ALLOW --rules=tcp:3389 --source-ranges=0.0.0.0/0
+
+gcloud compute firewall-rules create rhar-firewall-icmp --direction=INGRESS --priority=65535 --network=vpc-network-zp1g --action=ALLOW --rules=icmp --source-ranges=0.0.0.0/0
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+gcloud projects add-iam-policy-binding ${GOOGLE_CLOUD_PROJECT} \
+--member=serviceAccount:team-a-dev@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com  \
+--role=roles/container.clusterViewer
+
