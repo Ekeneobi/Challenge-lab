@@ -1,0 +1,16 @@
+## make bucket and copy startup script into bucket
+gsutil mb -p qwiklabs-gcp-04-cf4a2ea7299b gs://qwiklabs-gcp-04-cf4a2ea7299b
+
+gsutil -m cp  https://storage.cloud.google.com/qwiklabs-gcp-04-cf4a2ea7299b/resources-install-web.sh gs://qwiklabs-gcp-04-cf4a2ea7299b 
+
+
+## Create instance with startup script
+gcloud compute instances create my-instance \
+   --network=default \
+   --machine-type=e2-medium \
+   --image-family=debian-11 \
+   --image-project=debian-cloud \
+   --metadata startup-script-url=https://storage.cloud.google.com/qwiklabs-gcp-04-cf4a2ea7299b/install-web.sh
+
+## 
+gcloud compute firewall-rules create griffin-prod-firewall --network griffin-prod-vpc --allow tcp:22,tcp:3389,icmp
